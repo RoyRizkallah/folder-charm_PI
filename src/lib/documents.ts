@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { DocumentFile } from "@/types/document";
+import { PDFDocument } from "pdf-lib";
 
 const MOCK_DOCS: DocumentFile[] = [
   {
@@ -127,13 +128,13 @@ async function classifyWithGemini(file: File): Promise<{ title: string; account:
             inline_data: { mime_type: "application/pdf", data: base64 },
           },
           {
-            text: `Analyze this PDF document and respond with ONLY a JSON object (no markdown, no code block) with these fields:
-- title: a clean descriptive title for the document
-- account: the company or person name this document belongs to (or "Unassigned" if unclear)
+            text: `This is one page from an investor document. Respond with ONLY a JSON object (no markdown, no code block) with these fields:
+- account: the full name of the investor or company on this page (person name or company name)
+- title: same as account name (investor name is the title)
 - category: one of: Financial Reports, Contracts, Invoices, HR Documents, Tax Documents, Meeting Notes, Technical Docs, Correspondence, Legal Documents, Other
-- tags: array of 3-5 relevant tags
+- tags: array of 3-5 relevant tags about this investor or document type
 
-Example: {"title":"Q3 Financial Report","account":"Acme Corp","category":"Financial Reports","tags":["quarterly","finance","2024"]}`,
+Example: {"account":"John Smith","title":"John Smith","category":"Contracts","tags":["investor","agreement","2024"]}`,
           },
         ],
       }],
@@ -154,6 +155,28 @@ Example: {"title":"Q3 Financial Report","account":"Acme Corp","category":"Financ
   }
 }
 
+async function splitPdfIntoPages(file: File): Promise<File[]> {
+  const arrayBuffer = await file.arrayBuffer();
+  const srcPdf = await PDFDocument.load(arrayBuffer);
+  const pageCount = srcPdf.getPageCount();
+  const pages: File[] = [];
+
+  for (let i = 0; i < pageCount; i++) {
+    const singlePage = await PDFDocument.create();
+    const [copiedPage] = await singlePage.copyPages(srcPdf, [i]);
+    singlePage.addPage(copiedPage);
+    const bytes = await singlePage.save();
+    const pageFile = new File(
+      [bytes],
+      `${file.name.replace(/\.pdf$/i, "")}_page${i + 1}.pdf`,
+      { type: "application/pdf" }
+    );
+    pages.push(pageFile);
+  }
+
+  return pages;
+}
+
 export async function uploadDocuments(
   files: File[],
   onClassified: (id: string, updates: Partial<DocumentFile>) => void
@@ -161,33 +184,38 @@ export async function uploadDocuments(
   const results: DocumentFile[] = [];
 
   for (const file of files) {
-    const tempDoc: DocumentFile = {
-      id: `local-${Date.now()}-${Math.random()}`,
-      name: file.name.replace(/\.pdf$/i, "").replace(/[_-]/g, " "),
-      originalName: file.name,
-      account: "…",
-      category: "…",
-      tags: [],
-      status: "processing",
-      uploadedAt: new Date(),
-      size: file.size,
-      pageCount: 0,
-    };
-    results.push(tempDoc);
+    // Split into individual pages
+    const pages = await splitPdfIntoPages(file);
 
-    // Classify with Gemini and notify caller when done
-    classifyWithGemini(file).then((classification) => {
-      onClassified(tempDoc.id, {
-        name: classification.title || tempDoc.name,
-        account: classification.account || "Unknown",
-        category: classification.category || "Other",
-        tags: classification.tags || [],
-        status: "classified",
+    for (const page of pages) {
+      const tempDoc: DocumentFile = {
+        id: `local-${Date.now()}-${Math.random()}`,
+        name: page.name.replace(/\.pdf$/i, ""),
+        originalName: page.name,
+        account: "…",
+        category: "…",
+        tags: [],
+        status: "processing",
+        uploadedAt: new Date(),
+        size: page.size,
+        pageCount: 1,
+      };
+      results.push(tempDoc);
+
+      // Classify each page with Gemini
+      classifyWithGemini(page).then((classification) => {
+        onClassified(tempDoc.id, {
+          name: classification.account || tempDoc.name, // use investor name as doc name
+          account: classification.account || "Unknown",
+          category: classification.category || "Other",
+          tags: classification.tags || [],
+          status: "classified",
+        });
+      }).catch((err) => {
+        console.error("Gemini error:", err);
+        onClassified(tempDoc.id, { status: "error" });
       });
-    }).catch((err) => {
-      console.error("Gemini error:", err);
-      onClassified(tempDoc.id, { status: "error" });
-    });
+    }
   }
 
   return results;
