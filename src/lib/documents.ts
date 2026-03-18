@@ -108,31 +108,40 @@ const MOCK_DOCS: DocumentFile[] = [
   },
 ];
 
-const GEMINI_API_KEY = "AIzaSyCov9wudna9jDvYF-g6KIU7-V87saxqLdo";
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+const ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
 
-async function classifyWithGemini(file: File): Promise<{ title: string; account: string; category: string; tags: string[] }> {
+async function classifyWithClaude(file: File): Promise<{ title: string; account: string; category: string; tags: string[] }> {
   const arrayBuffer = await file.arrayBuffer();
   const bytes = new Uint8Array(arrayBuffer);
   let binary = "";
   for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
   const base64 = btoa(binary);
 
-  const response = await fetch(GEMINI_URL, {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-allow-browser": "true",
+    },
     body: JSON.stringify({
-      contents: [{
-        parts: [
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 256,
+      messages: [{
+        role: "user",
+        content: [
           {
-            inline_data: { mime_type: "application/pdf", data: base64 },
+            type: "document",
+            source: { type: "base64", media_type: "application/pdf", data: base64 },
           },
           {
-            text: `This is one page from an investor document. Respond with ONLY a JSON object (no markdown, no code block) with these fields:
-- account: the full name of the investor or company on this page (person name or company name)
-- title: same as account name (investor name is the title)
+            type: "text",
+            text: `This is one page from an investor document. Respond with ONLY a JSON object (no markdown, no code block) with:
+- account: full name of the investor or company on this page
+- title: same as account
 - category: one of: Financial Reports, Contracts, Invoices, HR Documents, Tax Documents, Meeting Notes, Technical Docs, Correspondence, Legal Documents, Other
-- tags: array of 3-5 relevant tags about this investor or document type
+- tags: array of 3-5 relevant tags
 
 Example: {"account":"John Smith","title":"John Smith","category":"Contracts","tags":["investor","agreement","2024"]}`,
           },
@@ -142,15 +151,13 @@ Example: {"account":"John Smith","title":"John Smith","category":"Contracts","ta
   });
 
   const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-  console.log("Gemini raw response:", text);
+  const text = data.content?.[0]?.text || "{}";
+  console.log("Claude raw response:", text);
 
-  // Strip markdown code fences if present
   const clean = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
   try {
     return JSON.parse(clean);
   } catch {
-    // Try extracting JSON object from anywhere in the text
     const match = clean.match(/\{[\s\S]*\}/);
     if (match) {
       try { return JSON.parse(match[0]); } catch {}
@@ -212,8 +219,8 @@ export async function uploadDocuments(
       };
       results.push(tempDoc);
 
-      // Classify each page with Gemini
-      classifyWithGemini(page).then((classification) => {
+      // Classify each page with Claude
+      classifyWithClaude(page).then((classification) => {
         onClassified(tempDoc.id, {
           name: classification.account || tempDoc.name,
           account: classification.account || "Unknown",
