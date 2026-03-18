@@ -143,12 +143,21 @@ Example: {"account":"John Smith","title":"John Smith","category":"Contracts","ta
 
   const data = await response.json();
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+  console.log("Gemini raw response:", text);
+
+  // Strip markdown code fences if present
+  const clean = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
   try {
-    return JSON.parse(text.trim());
+    return JSON.parse(clean);
   } catch {
+    // Try extracting JSON object from anywhere in the text
+    const match = clean.match(/\{[\s\S]*\}/);
+    if (match) {
+      try { return JSON.parse(match[0]); } catch {}
+    }
     return {
       title: file.name.replace(/\.pdf$/i, "").replace(/[_-]/g, " "),
-      account: "Unassigned",
+      account: "Unknown",
       category: "Other",
       tags: [],
     };
