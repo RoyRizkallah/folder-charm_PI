@@ -188,7 +188,7 @@ async function splitPdfIntoPages(file: File): Promise<{ file: File; bytes: Uint8
       `${file.name.replace(/\.pdf$/i, "")}_page${i + 1}.pdf`,
       { type: "application/pdf" }
     );
-    pages.push({ file: pageFile, bytes: new Uint8Array(bytes.buffer as ArrayBuffer) });
+    pages.push({ file: pageFile, bytes });
   }
 
   return pages;
