@@ -13,6 +13,7 @@ export interface DocumentFile {
   pageCount: number;
   ocrText?: string;
   metadata?: Record<string, string>;
+  pdfBytes?: Uint8Array;
 }
 
 export interface Account {

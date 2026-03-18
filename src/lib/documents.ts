@@ -155,11 +155,11 @@ Example: {"account":"John Smith","title":"John Smith","category":"Contracts","ta
   }
 }
 
-async function splitPdfIntoPages(file: File): Promise<File[]> {
+async function splitPdfIntoPages(file: File): Promise<{ file: File; bytes: Uint8Array }[]> {
   const arrayBuffer = await file.arrayBuffer();
   const srcPdf = await PDFDocument.load(arrayBuffer);
   const pageCount = srcPdf.getPageCount();
-  const pages: File[] = [];
+  const pages: { file: File; bytes: Uint8Array }[] = [];
 
   for (let i = 0; i < pageCount; i++) {
     const singlePage = await PDFDocument.create();
@@ -171,7 +171,7 @@ async function splitPdfIntoPages(file: File): Promise<File[]> {
       `${file.name.replace(/\.pdf$/i, "")}_page${i + 1}.pdf`,
       { type: "application/pdf" }
     );
-    pages.push(pageFile);
+    pages.push({ file: pageFile, bytes });
   }
 
   return pages;
@@ -187,7 +187,7 @@ export async function uploadDocuments(
     // Split into individual pages
     const pages = await splitPdfIntoPages(file);
 
-    for (const page of pages) {
+    for (const { file: page, bytes } of pages) {
       const tempDoc: DocumentFile = {
         id: `local-${Date.now()}-${Math.random()}`,
         name: page.name.replace(/\.pdf$/i, ""),
@@ -199,17 +199,19 @@ export async function uploadDocuments(
         uploadedAt: new Date(),
         size: page.size,
         pageCount: 1,
+        pdfBytes: bytes,
       };
       results.push(tempDoc);
 
       // Classify each page with Gemini
       classifyWithGemini(page).then((classification) => {
         onClassified(tempDoc.id, {
-          name: classification.account || tempDoc.name, // use investor name as doc name
+          name: classification.account || tempDoc.name,
           account: classification.account || "Unknown",
           category: classification.category || "Other",
           tags: classification.tags || [],
           status: "classified",
+          pdfBytes: bytes,
         });
       }).catch((err) => {
         console.error("Gemini error:", err);

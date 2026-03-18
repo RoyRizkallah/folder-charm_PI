@@ -1,4 +1,4 @@
-import { X, Tag, FileText, Edit3, ArrowRightLeft } from "lucide-react";
+import { X, Tag, FileText, Edit3, ArrowRightLeft, Download } from "lucide-react";
 import { DocumentFile } from "@/types/document";
 import { StatusBadge } from "./StatusBadge";
 import { format } from "date-fns";
@@ -16,6 +16,17 @@ export function DocumentDetail({ document, onClose, onUpdate }: DocumentDetailPr
   const [newName, setNewName] = useState(document.name);
   const [isReassigning, setIsReassigning] = useState(false);
 
+  const handleDownload = () => {
+    if (!document.pdfBytes) return;
+    const blob = new Blob([document.pdfBytes], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const a = window.document.createElement("a");
+    a.href = url;
+    a.download = `${document.name}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleRename = () => {
     if (newName.trim() && newName !== document.name) {
       onUpdate({ ...document, name: newName.trim() });
@@ -32,9 +43,16 @@ export function DocumentDetail({ document, onClose, onUpdate }: DocumentDetailPr
     <div className="w-96 border-l border-border bg-card h-full overflow-y-auto shrink-0">
       <div className="flex items-center justify-between p-4 border-b border-border">
         <h2 className="text-sm font-semibold text-foreground">Document Details</h2>
-        <button onClick={onClose} className="p-1 rounded hover:bg-muted transition-colors">
-          <X className="h-4 w-4 text-muted-foreground" />
-        </button>
+        <div className="flex items-center gap-1">
+          {document.pdfBytes && (
+            <button onClick={handleDownload} className="p-1 rounded hover:bg-muted transition-colors" title="Download PDF">
+              <Download className="h-4 w-4 text-muted-foreground" />
+            </button>
+          )}
+          <button onClick={onClose} className="p-1 rounded hover:bg-muted transition-colors">
+            <X className="h-4 w-4 text-muted-foreground" />
+          </button>
+        </div>
       </div>
 
       <div className="p-4 space-y-6">

@@ -1,4 +1,4 @@
-import { FileText, ChevronRight } from "lucide-react";
+import { FileText, ChevronRight, Download } from "lucide-react";
 import { DocumentFile } from "@/types/document";
 import { StatusBadge } from "./StatusBadge";
 import { format } from "date-fns";
@@ -7,6 +7,17 @@ interface DocumentTableProps {
   documents: DocumentFile[];
   onSelectDocument: (doc: DocumentFile) => void;
   selectedId?: string;
+}
+
+function downloadDoc(doc: DocumentFile) {
+  if (!doc.pdfBytes) return;
+  const blob = new Blob([doc.pdfBytes], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const a = window.document.createElement("a");
+  a.href = url;
+  a.download = `${doc.name}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function formatSize(bytes: number): string {
@@ -68,7 +79,18 @@ export function DocumentTable({ documents, onSelectDocument, selectedId }: Docum
               <td className="py-3 px-4 text-muted-foreground">{formatSize(doc.size)}</td>
               <td className="py-3 px-4 text-muted-foreground">{format(doc.uploadedAt, "MMM d, yyyy")}</td>
               <td className="py-3 px-2">
-                <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
+                <div className="flex items-center gap-1">
+                  {doc.pdfBytes && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); downloadDoc(doc); }}
+                      className="p-1 rounded hover:bg-muted transition-colors"
+                      title="Download PDF"
+                    >
+                      <Download className="h-3.5 w-3.5 text-muted-foreground/70" />
+                    </button>
+                  )}
+                  <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
+                </div>
               </td>
             </tr>
           ))}
