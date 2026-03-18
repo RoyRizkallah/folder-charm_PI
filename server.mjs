@@ -6,6 +6,8 @@ import { dirname, join } from "path";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
+const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || process.env.VITE_ANTHROPIC_API_KEY || "";
+console.log("ANTHROPIC_API_KEY present:", !!ANTHROPIC_KEY, "length:", ANTHROPIC_KEY.length);
 
 // Proxy /api/anthropic/* → https://api.anthropic.com/*
 app.use(
@@ -16,8 +18,7 @@ app.use(
     pathRewrite: { "^/api/anthropic": "" },
     on: {
       proxyReq: (proxyReq) => {
-        const apiKey = process.env.ANTHROPIC_API_KEY || process.env.VITE_ANTHROPIC_API_KEY || "";
-        proxyReq.setHeader("x-api-key", apiKey);
+        proxyReq.setHeader("x-api-key", ANTHROPIC_KEY);
         proxyReq.setHeader("anthropic-version", "2023-06-01");
         // Remove the browser-only header since we're server-side now
         proxyReq.removeHeader("anthropic-dangerous-allow-browser");
