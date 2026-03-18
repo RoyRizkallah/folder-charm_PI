@@ -108,8 +108,6 @@ const MOCK_DOCS: DocumentFile[] = [
   },
 ];
 
-const ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
-
 async function classifyWithClaude(file: File): Promise<{ title: string; account: string; category: string; tags: string[] }> {
   const arrayBuffer = await file.arrayBuffer();
   const bytes = new Uint8Array(arrayBuffer);
@@ -117,13 +115,10 @@ async function classifyWithClaude(file: File): Promise<{ title: string; account:
   for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
   const base64 = btoa(binary);
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetch("/api/anthropic/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-api-key": ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-allow-browser": "true",
     },
     body: JSON.stringify({
       model: "claude-haiku-4-5-20251001",
