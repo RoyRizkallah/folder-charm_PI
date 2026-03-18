@@ -5,6 +5,7 @@ export interface DocumentFile {
   name: string;
   originalName: string;
   account: string;
+  balance?: string;
   category: string;
   tags: string[];
   status: DocumentStatus;
@@ -13,7 +14,7 @@ export interface DocumentFile {
   pageCount: number;
   ocrText?: string;
   metadata?: Record<string, string>;
-  pdfBytes?: Uint8Array;
+  pdfBytes?: Uint8Array<ArrayBuffer>;
 }
 
 export interface Account {

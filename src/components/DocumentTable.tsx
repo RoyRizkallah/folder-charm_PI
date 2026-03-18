@@ -44,6 +44,7 @@ export function DocumentTable({ documents, onSelectDocument, selectedId }: Docum
           <tr className="border-b border-border bg-muted/50">
             <th className="text-left py-3 px-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Document</th>
             <th className="text-left py-3 px-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Account</th>
+            <th className="text-left py-3 px-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Balance</th>
             <th className="text-left py-3 px-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Category</th>
             <th className="text-left py-3 px-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Status</th>
             <th className="text-left py-3 px-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Size</th>
@@ -74,6 +75,7 @@ export function DocumentTable({ documents, onSelectDocument, selectedId }: Docum
                 </div>
               </td>
               <td className="py-3 px-4 text-foreground">{doc.account}</td>
+              <td className="py-3 px-4 text-foreground font-medium">{doc.balance || "—"}</td>
               <td className="py-3 px-4 text-muted-foreground">{doc.category}</td>
               <td className="py-3 px-4"><StatusBadge status={doc.status} /></td>
               <td className="py-3 px-4 text-muted-foreground">{formatSize(doc.size)}</td>

@@ -20,6 +20,7 @@ app.use(
       proxyReq: (proxyReq) => {
         proxyReq.setHeader("x-api-key", ANTHROPIC_KEY);
         proxyReq.setHeader("anthropic-version", "2023-06-01");
+        proxyReq.setHeader("anthropic-beta", "pdfs-2024-09-25");
         // Remove the browser-only header since we're server-side now
         proxyReq.removeHeader("anthropic-dangerous-allow-browser");
       },

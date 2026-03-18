@@ -108,7 +108,7 @@ const MOCK_DOCS: DocumentFile[] = [
   },
 ];
 
-async function classifyWithClaude(file: File): Promise<{ title: string; account: string; category: string; tags: string[] }> {
+async function classifyWithClaude(file: File): Promise<{ title: string; account: string; balance?: string; category: string; tags: string[] }> {
   const arrayBuffer = await file.arrayBuffer();
   const bytes = new Uint8Array(arrayBuffer);
   let binary = "";
@@ -135,16 +135,22 @@ async function classifyWithClaude(file: File): Promise<{ title: string; account:
             text: `This is one page from an investor document. Respond with ONLY a JSON object (no markdown, no code block) with:
 - account: full name of the investor or company on this page
 - title: same as account
+- balance: the portfolio value, balance, or investment amount shown (e.g. "$1,234,567.00"), or null if not found
 - category: one of: Financial Reports, Contracts, Invoices, HR Documents, Tax Documents, Meeting Notes, Technical Docs, Correspondence, Legal Documents, Other
 - tags: array of 3-5 relevant tags
 
-Example: {"account":"John Smith","title":"John Smith","category":"Contracts","tags":["investor","agreement","2024"]}`,
+Example: {"account":"John Smith","title":"John Smith","balance":"$1,234,567.00","category":"Financial Reports","tags":["investor","portfolio","2024"]}`,
           },
         ],
       }],
     }),
   });
 
+  if (!response.ok) {
+    const err = await response.text();
+    console.error("Claude API error:", response.status, err);
+    throw new Error(`Claude API error: ${response.status}`);
+  }
   const data = await response.json();
   const text = data.content?.[0]?.text || "{}";
   console.log("Claude raw response:", text);
@@ -178,11 +184,11 @@ async function splitPdfIntoPages(file: File): Promise<{ file: File; bytes: Uint8
     singlePage.addPage(copiedPage);
     const bytes = await singlePage.save();
     const pageFile = new File(
-      [bytes],
+      [bytes.buffer as ArrayBuffer],
       `${file.name.replace(/\.pdf$/i, "")}_page${i + 1}.pdf`,
       { type: "application/pdf" }
     );
-    pages.push({ file: pageFile, bytes });
+    pages.push({ file: pageFile, bytes: new Uint8Array(bytes.buffer as ArrayBuffer) });
   }
 
   return pages;
@@ -219,6 +225,7 @@ export async function uploadDocuments(
         onClassified(tempDoc.id, {
           name: classification.account || tempDoc.name,
           account: classification.account || "Unknown",
+          balance: classification.balance || undefined,
           category: classification.category || "Other",
           tags: classification.tags || [],
           status: "classified",
