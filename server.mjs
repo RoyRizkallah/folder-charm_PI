@@ -16,7 +16,8 @@ app.use(
     pathRewrite: { "^/api/anthropic": "" },
     on: {
       proxyReq: (proxyReq) => {
-        proxyReq.setHeader("x-api-key", process.env.VITE_ANTHROPIC_API_KEY || "");
+        const apiKey = process.env.ANTHROPIC_API_KEY || process.env.VITE_ANTHROPIC_API_KEY || "";
+        proxyReq.setHeader("x-api-key", apiKey);
         proxyReq.setHeader("anthropic-version", "2023-06-01");
         // Remove the browser-only header since we're server-side now
         proxyReq.removeHeader("anthropic-dangerous-allow-browser");
