@@ -8,6 +8,9 @@ import { DocumentFile } from "@/types/document";
 import { fetchDocuments, uploadDocuments, updateDocument, subscribeToDocuments } from "@/lib/documents";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
+import JSZip from "jszip";
 
 export default function Index() {
   const [documents, setDocuments] = useState<DocumentFile[]>([]);
@@ -98,6 +101,40 @@ export default function Index() {
     }
   }, []);
 
+  const handleDownloadAll = async () => {
+    if (filteredDocs.length === 0) return;
+    
+    try {
+      toast.info("Preparing download...");
+      const zip = new JSZip();
+      let hasFiles = false;
+
+      for (const doc of filteredDocs) {
+        if (doc.pdfBytes) {
+          zip.file(`${doc.name}.pdf`, doc.pdfBytes);
+          hasFiles = true;
+        }
+      }
+
+      if (!hasFiles) {
+        toast.error("No downloadable files found. Did you upload any PDFs?");
+        return;
+      }
+
+      const content = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(content);
+      const a = window.document.createElement("a");
+      a.href = url;
+      a.download = `documents_${(selectedAccount === "All Documents" ? "all" : selectedAccount).replace(/[^a-z0-9]/gi, '_').toLowerCase()}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Download started");
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Failed to create zip file");
+    }
+  };
+
   return (
     <div className="flex h-screen overflow-hidden">
       <AppSidebar
@@ -115,6 +152,11 @@ export default function Index() {
                 {filteredDocs.length} document{filteredDocs.length !== 1 ? "s" : ""}
               </p>
             </div>
+            {filteredDocs.length > 0 && (
+              <Button onClick={handleDownloadAll} variant="outline" size="sm">
+                <Download className="mr-2 h-4 w-4" /> Download All PDFs
+              </Button>
+            )}
           </div>
           <SearchBar
             query={searchQuery}
